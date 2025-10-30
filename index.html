@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SheerID Verify - Aplikasi Pengguna</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons for aesthetic icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom styles for aesthetic buttons and main container (DARK THEME) */
+        :root {
+            --primary: #8b5cf6; /* Violet 500 */
+            --secondary: #374151; /* Gray 700 */
+            --text-color: #f3f4f6; /* Gray 100 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1f2937; /* Gray 800 */
+            color: var(--text-color);
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            color: #1f2937; /* Dark text on bright button */
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s, transform 0.1s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #7c3aed; /* Violet 600 */
+            transform: translateY(-1px);
+        }
+        .card {
+            background-color: #374151; /* Gray 700 for cards */
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+            max-width: 100%;
+        }
+        /* Status Colors for Dark Theme */
+        .status-loading { background-color: #4a341b; color: #facc15; } /* Dark Amber/Yellow */
+        .status-approved { background-color: #064e3b; color: #34d399; } /* Dark Green/Teal */
+        .status-rejected { background-color: #7f1d1d; color: #f87171; } /* Dark Red/Pink */
+        .status-pending { background-color: #164e63; color: #22d3ee; } /* Dark Cyan (Fallback) */
+
+        .input-field {
+            padding: 0.75rem;
+            background-color: #1f2937; /* Gray 800 */
+            border: 1px solid #4b5563; /* Gray 600 */
+            border-radius: 0.5rem;
+            width: 100%;
+            color: var(--text-color);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .input-field:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3); /* Violet shadow */
+        }
+        
+        /* Cool Loading Spinner */
+        @keyframes dash {
+          to {
+            stroke-dashoffset: 0;
+          }
+        }
+        .cool-spinner {
+            animation: rotate 1.5s linear infinite;
+            transform-origin: center center;
+            width: 20px;
+            height: 20px;
+            margin-right: 0.5rem;
+        }
+        .cool-spinner circle {
+            stroke: #fff; /* White spinner line */
+            stroke-linecap: round;
+            animation: dash 1.5s ease-in-out infinite;
+            stroke-dasharray: 90, 150;
+            stroke-dashoffset: -10;
+            stroke-width: 3;
+            fill: none;
+        }
+        @keyframes rotate {
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header & Navigation -->
+    <header class="bg-gray-900 shadow-xl p-4 sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-100 flex items-center">
+                <i data-lucide="shield-check" class="w-6 h-6 text-violet-400 mr-2"></i>
+                SheerID Verify - User
+            </h1>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow p-4 md:p-8 flex justify-center items-start">
+        <div id="app-container" class="w-full max-w-2xl">
+            
+            <!-- User View -->
+            <div id="view-user" class="card transition-opacity duration-300">
+                <h2 class="text-xl font-semibold mb-6 text-gray-100 flex items-center">
+                    <i data-lucide="send" class="w-5 h-5 mr-2 text-violet-400"></i> Kirim Permintaan Verifikasi
+                </h2>
+                <div id="user-status-display" class="mb-4">
+                    <!-- Status akan dimuat di sini -->
+                </div>
+                
+                <p class="text-sm text-gray-400 mb-6 p-3 bg-gray-600 border-l-4 border-violet-400 rounded-lg">
+                    <i data-lucide="info" class="w-4 h-4 inline-block mr-1 text-violet-400"></i>
+                    Jika Anda tidak memiliki Kode, silakan minta ke Admin via <a href="https://wa.me/6281574769589" target="_blank" class="font-bold text-green-400 hover:underline">WhatsApp</a>. (UserID Anda: <span id="current-user-id" class="font-mono text-xs">Loading...</span>)
+                </p>
+
+                <form id="verification-form" class="space-y-4">
+                    <div>
+                        <label for="input-code" class="block text-sm font-medium text-gray-300 mb-1">Kode Verifikasi</label>
+                        <input id="input-code" type="text" placeholder="Masukkan kode verifikasi unik" required class="input-field">
+                    </div>
+                    <div>
+                        <label for="input-link" class="block text-sm font-medium text-gray-300 mb-1">Link SheerID</label>
+                        <input id="input-link" type="url" placeholder="Masukkan link SheerID Anda (misal: https://sheerid.com/...)" required class="input-field">
+                    </div>
+                    <button type="submit" id="submit-button" class="btn-primary w-full flex items-center justify-center">
+                        <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> Kirim & Mulai Verifikasi
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- FLOATING WHATSAPP BUTTON -->
+    <a id="wa-button" 
+       href="https://wa.me/6281574769589" 
+       target="_blank" 
+       title="Hubungi Admin via WhatsApp"
+       class="fixed bottom-6 right-6 p-4 rounded-full bg-green-500 text-white shadow-lg hover:bg-green-600 transition-all duration-300 z-40">
+        <i data-lucide="message-square" class="w-6 h-6"></i>
+    </a>
+    
+    <!-- MODAL FOR CUSTOM ALERT/CONFIRMATION -->
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 hidden" onclick="closeModal(event)">
+        <div class="bg-gray-700 p-6 rounded-xl shadow-2xl max-w-sm w-full transition-all duration-300" onclick="event.stopPropagation()">
+            <h3 id="modal-title" class="text-xl font-bold mb-3 text-gray-100"></h3>
+            <p id="modal-content" class="text-gray-300 mb-6"></p>
+            <div class="flex justify-end space-x-3">
+                <button id="modal-cancel-btn" class="px-4 py-2 text-sm font-medium text-gray-300 border border-gray-500 rounded-lg hover:bg-gray-600 transition hidden">Batal</button>
+                <button id="modal-confirm-btn" class="px-4 py-2 text-sm font-medium btn-primary" onclick="hideModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, updateDoc, onSnapshot, collection, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Atur log level untuk debugging Firestore
+        setLogLevel('Debug');
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        // User App uses anonymous sign-in, so initialAuthToken is ignored.
+
+        let app;
+        let db;
+        let auth;
+        let currentUserId = 'Loading...';
+        let userVerificationDocId = null; 
+
+        // --- Constants ---
+        const VERIFICATIONS_COLLECTION = 'verifications';
+
+        // --- Utility Functions ---
+
+        /**
+         * Gets the Firestore collection reference for a given path.
+         */
+        const getPublicCollection = (collectionName) => {
+            const publicCollectionPath = `artifacts/${appId}/public/data/${collectionName}`;
+            return collection(db, publicCollectionPath);
+        };
+
+        const getStatusClasses = (status) => {
+            switch (status) {
+                case 'Approved': return 'status-approved';
+                case 'Loading': return 'status-loading';
+                case 'Rejected': return 'status-rejected';
+                default: return 'status-pending';
+            }
+        };
+
+        window.showModal = function(title, content, isConfirm = false, onConfirm = () => {}) {
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-content').innerText = content;
+            
+            const okBtn = document.getElementById('modal-confirm-btn');
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+
+            if (isConfirm) {
+                okBtn.innerText = 'Ya, Lanjutkan';
+                okBtn.onclick = () => { hideModal(); onConfirm(); };
+                cancelBtn.innerText = 'Batal';
+                cancelBtn.classList.remove('hidden');
+            } else {
+                okBtn.innerText = 'OK';
+                okBtn.onclick = hideModal;
+                cancelBtn.classList.add('hidden');
+            }
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        window.hideModal = function() {
+            document.getElementById('custom-modal').classList.add('hidden');
+            document.getElementById('modal-confirm-btn').onclick = hideModal;
+            document.getElementById('modal-cancel-btn').classList.add('hidden');
+        }
+
+        window.closeModal = function(event) {
+             if (event.target.id === 'custom-modal') { hideModal(); }
+        }
+        
+        // --- UI Rendering & State Management ---
+
+        function renderUserStatus(verification) {
+            const statusDisplay = document.getElementById('user-status-display');
+            const form = document.getElementById('verification-form');
+            const submitBtn = document.getElementById('submit-button');
+
+            statusDisplay.innerHTML = ''; 
+
+            if (!verification || verification.status === 'Resolved') {
+                form.classList.remove('hidden');
+                submitBtn.disabled = false;
+                return;
+            }
+
+            form.classList.add('hidden');
+            submitBtn.disabled = true;
+
+            const status = verification.status;
+            let title = '';
+            let icon = '';
+            let message = '';
+            let classes = '';
+
+            switch (status) {
+                case 'Loading':
+                    title = 'Verifikasi Sedang Diproses (Loading)';
+                    icon = '⏳'; 
+                    message = 'Permintaan Anda telah dikirim dan menunggu persetujuan Admin. Status akan diperbarui secara otomatis.';
+                    classes = 'status-loading';
+                    break;
+                case 'Approved':
+                    title = 'Verifikasi Sukses!';
+                    icon = 'thumbs-up';
+                    message = 'Selamat! Verifikasi SheerID Anda telah disetujui oleh Admin. Anda sekarang dapat mengakses layanan penuh.';
+                    classes = 'status-approved';
+                    break;
+                case 'Rejected':
+                    title = 'Verifikasi Ditolak';
+                    icon = 'x-octagon';
+                    message = 'Maaf, verifikasi Anda ditolak. Silakan periksa kembali Kode atau Link SheerID Anda, atau hubungi Admin.';
+                    classes = 'status-rejected';
+                    break;
+                default:
+                    title = 'Status Tidak Dikenal';
+                    icon = 'help-circle';
+                    classes = 'bg-gray-200 text-gray-800';
+                    break;
+            }
+            
+            let iconHtml;
+            if (icon.length > 1 && status === 'Loading') { // Using emoji
+                iconHtml = `<span class="text-xl">${icon}</span>`; 
+            } else {
+                iconHtml = `<i data-lucide="${icon}" class="w-6 h-6 flex-shrink-0 mt-0.5"></i>`; 
+            }
+
+            // Status Card HTML
+            statusDisplay.innerHTML = `
+                <div class="${classes} p-4 rounded-lg flex items-start space-x-3 mb-4 transition-all duration-300">
+                    ${iconHtml}
+                    <div class="flex-grow">
+                        <h3 class="font-bold text-lg">${title}</h3>
+                        <p class="text-sm mt-1">${message}</p>
+                    </div>
+                </div>
+                ${status === 'Approved' || status === 'Rejected' ? 
+                    `<button onclick="resetUserStatus()" class="text-sm text-red-400 hover:text-red-300 font-medium">Kirim Permintaan Baru</button>` : ''
+                }
+            `;
+            lucide.createIcons();
+        }
+
+        // --- Auth & Init ---
+
+        async function initializeAndAuthenticate() {
+            if (!firebaseConfig) {
+                 console.error("Firebase config is missing.");
+                 showModal("Error", "Konfigurasi Firebase tidak ditemukan. Aplikasi tidak dapat berjalan.");
+                 return;
+            }
+            
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Sign in anonymously for simple user tracking
+                await signInAnonymously(auth);
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        document.getElementById('current-user-id').innerText = currentUserId;
+                        setupListeners();
+                    } else {
+                        currentUserId = 'Signed Out';
+                        document.getElementById('current-user-id').innerText = currentUserId;
+                        showModal("Sesi Berakhir", "Sesi Anda telah berakhir. Silakan muat ulang halaman.");
+                    }
+                });
+                
+            } catch (error) {
+                console.error("Error during Firebase initialization or sign-in:", error);
+                showModal("Error Fatal", "Gagal menginisialisasi Firebase: " + error.message);
+            }
+        }
+
+        // --- Firestore Listeners & Operations ---
+
+        function setupListeners() {
+            if (!db || !currentUserId || currentUserId === 'Loading...') return;
+
+            const verificationsRef = getPublicCollection(VERIFICATIONS_COLLECTION);
+            
+            // User Listener (Only their latest verification)
+            const userQuery = query(verificationsRef, where("userId", "==", currentUserId));
+            onSnapshot(userQuery, (snapshot) => {
+                let latestVerification = null;
+                snapshot.forEach(doc => {
+                    const data = { id: doc.id, ...doc.data() };
+                    // Find the most recent non-resolved request
+                    if (data.status !== 'Resolved' && (!latestVerification || (data.timestamp && (!latestVerification.timestamp || data.timestamp.seconds > latestVerification.timestamp.seconds)))) {
+                        latestVerification = data;
+                    }
+                });
+
+                if (latestVerification) {
+                    userVerificationDocId = latestVerification.id;
+                } else {
+                    userVerificationDocId = null;
+                }
+                renderUserStatus(latestVerification);
+            }, (error) => {
+                console.error("User Verify Listener Error:", error);
+            });
+        }
+
+
+        // --- Verification Functions ---
+
+        window.submitVerification = async function(event) {
+            event.preventDefault();
+            
+            const code = document.getElementById('input-code').value.trim();
+            const link = document.getElementById('input-link').value.trim();
+            const submitBtn = document.getElementById('submit-button');
+
+            if (!code || !link) {
+                showModal("Kesalahan Input", "Kode Verifikasi dan Link SheerID wajib diisi.");
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<svg class="cool-spinner" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20"></circle></svg> Mengirim...`;
+
+            
+            const verificationsRef = getPublicCollection(VERIFICATIONS_COLLECTION);
+
+            try {
+                 // Always create a new document when submitting a verification request
+                 const data = {
+                    userId: currentUserId,
+                    code: code,
+                    sheerIdLink: link,
+                    status: 'Loading',
+                    timestamp: serverTimestamp(), 
+                    updatedAt: serverTimestamp(),
+                 };
+
+                 await addDoc(verificationsRef, data);
+
+                showModal("Permintaan Terkirim", "Permintaan verifikasi Anda berhasil dikirim! Menunggu persetujuan Admin.");
+                document.getElementById('input-code').value = '';
+                document.getElementById('input-link').value = '';
+
+            } catch (e) {
+                console.error("Error submitting verification: ", e);
+                showModal("Kesalahan", "Gagal mengirim permintaan verifikasi: " + e.message);
+            } finally {
+                submitBtn.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 mr-2"></i> Kirim & Mulai Verifikasi`;
+                lucide.createIcons();
+            }
+        }
+        
+        document.getElementById('verification-form').addEventListener('submit', window.submitVerification);
+
+        window.resetUserStatus = function() {
+             showModal(
+                "Kirim Permintaan Baru",
+                "Status verifikasi sebelumnya akan diselesaikan ('Resolved') agar Anda bisa mengirim yang baru. Lanjutkan?",
+                true,
+                async () => {
+                    if (userVerificationDocId) {
+                        const verificationsRef = getPublicCollection(VERIFICATIONS_COLLECTION);
+                        try {
+                            // Update the specific document to Resolved
+                            await updateDoc(doc(verificationsRef, userVerificationDocId), {
+                                status: 'Resolved',
+                                resolvedTimestamp: serverTimestamp()
+                            });
+                        } catch (e) {
+                            console.error("Error resetting status: ", e);
+                            showModal("Kesalahan", "Gagal mereset status: " + e.message);
+                        }
+                    }
+                }
+            );
+        }
+
+        // --- Start Application ---
+        initializeAndAuthenticate();
+        
+    </script>
+</body>
+</html>
+
